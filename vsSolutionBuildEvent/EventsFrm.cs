@@ -35,6 +35,7 @@ namespace reg.ext.vsSolutionBuildEvent
 {
     public partial class EventsFrm : Form
     {
+        private string visualStudioGalleryPage                      = "http://visualstudiogallery.msdn.microsoft.com/0d1dbfd7-ed8a-40af-ae39-281bfeca2334/";
         private List<vsSolutionBuildEvent.Event> _solutionEvents    = new List<vsSolutionBuildEvent.Event>();
         private readonly List<string> _checkedStatus                = new List<string> { "Disabled", "Enabled" };
 
@@ -84,9 +85,13 @@ namespace reg.ext.vsSolutionBuildEvent
 
         private void btnExample_Click(object sender, EventArgs e)
         {
-            MessageBox.Show(
-                "see on: bitbucket.org/3F \n https://bitbucket.org/3F/vssolutionbuildevent\n\nentry.reg@gmail.com",
-                this.Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            DialogResult ret = MessageBox.Show(
+                "Newest version only on new page ! \n\n Click 'Yes' to go to the new page",
+                this.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+
+            if(ret == DialogResult.Yes) {
+                System.Diagnostics.Process.Start(visualStudioGalleryPage);
+            }
         }
 
         private void comboBoxEvents_SelectedIndexChanged(object sender, EventArgs e)
@@ -126,6 +131,11 @@ namespace reg.ext.vsSolutionBuildEvent
             checkBoxStatus.Checked  = evt.enabled;
             textBoxCommand.Text     = evt.command;
             textBoxCaption.Text     = evt.caption;
+        }
+
+        private void linkNewVer_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            System.Diagnostics.Process.Start(visualStudioGalleryPage);
         }
     }
 }

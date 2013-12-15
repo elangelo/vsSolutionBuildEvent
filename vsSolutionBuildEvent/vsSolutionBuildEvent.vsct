@@ -70,10 +70,10 @@
 
   <Symbols>
     <!-- This is the package guid. -->
-    <GuidSymbol name="guidvsSolutionBuildEventPkg" value="{94ecd13f-15f3-4f51-9afd-17f0275c6266}" />
+    <GuidSymbol name="guidvsSolutionBuildEventPkg" value="{0482EC9B-51C8-4BC9-B128-AA6EF6022946}" />
     
     <!-- This is the guid used to group the menu commands together -->
-    <GuidSymbol name="guidvsSolutionBuildEventCmdSet" value="{5547e550-6d81-4f97-91ed-338926673efa}">
+    <GuidSymbol name="guidvsSolutionBuildEventCmdSet" value="{4B59ABE7-20F3-4C4A-870C-EB3B8B80CD2D}">
 
       <IDSymbol name="cmdSolutionBuildEvent" value="0x0100" />
     </GuidSymbol>

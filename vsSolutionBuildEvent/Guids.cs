@@ -6,8 +6,8 @@ namespace reg.ext.vsSolutionBuildEvent
 {
     static class GuidList
     {
-        public const string guidvsSolutionBuildEventPkgString = "94ecd13f-15f3-4f51-9afd-17f0275c6266";
-        public const string guidvsSolutionBuildEventCmdSetString = "5547e550-6d81-4f97-91ed-338926673efa";
+        public const string guidvsSolutionBuildEventPkgString = "0482EC9B-51C8-4BC9-B128-AA6EF6022946";
+        public const string guidvsSolutionBuildEventCmdSetString = "4B59ABE7-20F3-4C4A-870C-EB3B8B80CD2D";
 
         public static readonly Guid guidvsSolutionBuildEventCmdSet = new Guid(guidvsSolutionBuildEventCmdSetString);
     };

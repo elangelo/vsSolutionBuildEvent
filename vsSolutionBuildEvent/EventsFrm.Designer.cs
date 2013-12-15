@@ -37,6 +37,7 @@
             this.textBoxCaption = new System.Windows.Forms.TextBox();
             this.labelCaption = new System.Windows.Forms.Label();
             this.labelCmd = new System.Windows.Forms.Label();
+            this.linkNewVer = new System.Windows.Forms.LinkLabel();
             this.SuspendLayout();
             // 
             // comboBoxEvents
@@ -132,11 +133,23 @@
             this.labelCmd.TabIndex = 9;
             this.labelCmd.Text = "Command script:";
             // 
+            // linkNewVer
+            // 
+            this.linkNewVer.AutoSize = true;
+            this.linkNewVer.Location = new System.Drawing.Point(117, 241);
+            this.linkNewVer.Name = "linkNewVer";
+            this.linkNewVer.Size = new System.Drawing.Size(133, 13);
+            this.linkNewVer.TabIndex = 10;
+            this.linkNewVer.TabStop = true;
+            this.linkNewVer.Text = "this version is deprecated !";
+            this.linkNewVer.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkNewVer_LinkClicked);
+            // 
             // EventsFrm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(422, 264);
+            this.Controls.Add(this.linkNewVer);
             this.Controls.Add(this.labelCmd);
             this.Controls.Add(this.labelCaption);
             this.Controls.Add(this.textBoxCaption);
@@ -169,5 +182,6 @@
         private System.Windows.Forms.TextBox textBoxCaption;
         private System.Windows.Forms.Label labelCaption;
         private System.Windows.Forms.Label labelCmd;
+        private System.Windows.Forms.LinkLabel linkNewVer;
     }
 }
