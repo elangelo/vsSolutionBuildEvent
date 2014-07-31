@@ -25,7 +25,7 @@ namespace net.r_eg.vsSBE
     [PackageRegistration(UseManagedResourcesOnly = true)]
 
     // To register the informations needed to in the Help/About dialog of Visual Studio
-    [InstalledProductRegistration("#110", "#112", "0.6.0.7001", IconResourceID = 400)]
+    [InstalledProductRegistration("#110", "#112", "0.6.0.7002", IconResourceID = 400)]
 
     // This attribute is needed to let the shell know that this package exposes some menus.
     [ProvideMenuResource("Menus.ctmenu", 1)]
@@ -121,9 +121,20 @@ namespace net.r_eg.vsSBE
 
         int IVsSolutionEvents.OnAfterOpenSolution(object pUnkReserved, int fNewSolution)
         {
-            Config.load(Path.GetDirectoryName(Dte2.Solution.FullName) + "\\");
-            _state();
+            try
+            {
+                string path = Dte2.Solution.FullName; // may be empty e.g. if fNewSolution == 1 etc.
+                if(string.IsNullOrEmpty(path)) {
+                    path = Dte2.Solution.Properties.Item("Path").Value.ToString();
+                }
 
+                Config.load(Path.GetDirectoryName(path) + "\\");
+                _state();
+            }
+            catch(Exception ex) {
+                Log.nlog.Fatal("Cannot load configuration: " + ex.Message);
+                return VSConstants.S_FALSE;
+            }
             _menuItemMain.Visible = true;
             UI.StatusToolWindow.control.enabled(true);
             return VSConstants.S_OK;
