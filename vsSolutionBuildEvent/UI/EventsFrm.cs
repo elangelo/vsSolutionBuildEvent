@@ -226,6 +226,10 @@ namespace net.r_eg.vsSBE.UI
             comboBoxEvents.SelectedIndex = 0;
             _operationsInit();
             _renderData();
+
+#if DEBUG
+            this.Text += " [Debug version]";
+#endif
         }
 
         private void btnExample_Click(object sender, EventArgs e)
