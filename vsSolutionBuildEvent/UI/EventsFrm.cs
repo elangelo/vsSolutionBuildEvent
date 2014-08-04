@@ -249,6 +249,15 @@ namespace net.r_eg.vsSBE.UI
             }
         }
 
+        private void btnBugReport_Click(object sender, EventArgs e)
+        {
+            DialogResult ret = MessageBox.Show("Click 'Yes' if you found error or have a proposal", this.Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if(ret == DialogResult.Yes) {
+                System.Diagnostics.Process.Start("https://bitbucket.org/3F/vssolutionbuildevent/issues/new");
+            }
+        }
+
         private void comboBoxEvents_SelectedIndexChanged(object sender, EventArgs e)
         {
             _operationsSelect();

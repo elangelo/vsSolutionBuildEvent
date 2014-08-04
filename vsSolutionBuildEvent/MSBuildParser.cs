@@ -44,7 +44,20 @@ namespace net.r_eg.vsSBE
         /// <summary>
         /// DTE context
         /// </summary>
-        protected DTE2 dte2                     = null;
+        protected DTE2 dte2 = null;
+
+        /// <summary>
+        /// Getting name from "Set as SturtUp Project"
+        /// </summary>
+        protected string StartupProjectString
+        {
+            get { return dte2.Solution.SolutionBuild.StartupProjects.ToString();  }
+        }
+
+        protected SolutionConfiguration2 SolutionActiveConfiguration
+        {
+            get { return (SolutionConfiguration2)dte2.Solution.SolutionBuild.ActiveConfiguration; }
+        }
 
         /// <summary>
         /// Flag of optimisation reload projects.
@@ -55,7 +68,7 @@ namespace net.r_eg.vsSBE
         /// <summary>
         /// object synch.
         /// </summary>
-        private Object _eLock                   = new Object();
+        private Object _eLock = new Object();
 
         /// <summary>
         /// MSBuild Property from default Project
@@ -104,7 +117,7 @@ namespace net.r_eg.vsSBE
             while(eprojects.MoveNext()) {
                 string projectName = eprojects.Current.GetPropertyValue("ProjectName");
 
-                if(projectName != null && _isActiveConfiguration(eprojects.Current)) {
+                if(projectName != null && isActiveConfiguration(eprojects.Current)) {
                     projects.Add(projectName);
                 }
             }
@@ -117,7 +130,7 @@ namespace net.r_eg.vsSBE
         /// <param name="unevaluated">raw string as $(..data..)</param>
         /// <param name="projectName">push null if default</param>
         /// <returns>evaluated value</returns>
-        public string evaluateVariable(string unevaluated, string projectName)
+        public virtual string evaluateVariable(string unevaluated, string projectName)
         {
             Project project = getProject(projectName);
             lock(_eLock) {
@@ -268,23 +281,42 @@ namespace net.r_eg.vsSBE
 
         /// <summary>
         /// get default project for access to properties etc.
-        /// first in the list at Configuration & Platform
+        /// Startup-project in the list or the first with the same Configuration & Platform
         /// </summary>
         /// <exception cref="MSBuildParserProjectNotFoundException">something wrong with loaded projects</exception>
         /// <returns>Microsoft.Build.Evaluation.Project</returns>
-        protected Project getProjectDefault()
+        protected virtual Project getProjectDefault()
         {
-            IEnumerator<Project> eprojects = _loadedProjects();
-            while(eprojects.MoveNext()) {
-                if(_isActiveConfiguration(eprojects.Current)) {
-                    return eprojects.Current;
+            Project ret                     = null;
+            IEnumerator<Project> eprojects  = _loadedProjects();
+
+            while(eprojects.MoveNext())
+            {
+                bool isActive = isActiveConfiguration(eprojects.Current);
+                if(isActive && eprojects.Current.FullPath.EndsWith(StartupProjectString)) {
+                    ret = eprojects.Current;
+                    break;
                 }
+
+                if(ret == null && isActive) {
+                    ret = eprojects.Current; // by default if there are problems with the StartupProjectString
+                }
+            }
+
+            // Solution context for selected
+            if(ret != null) {
+                ret.SetGlobalProperty("Configuration", SolutionActiveConfiguration.Name);
+                ret.SetGlobalProperty("Platform", SolutionActiveConfiguration.PlatformName);
+
+                Log.nlog.Debug("Selected default project: " + ret.FullPath);
+                Log.nlog.Debug(String.Format("Override properties: ({0}, {1})", SolutionActiveConfiguration.Name, SolutionActiveConfiguration.PlatformName));
+                return ret;
             }
             throw new MSBuildParserProjectNotFoundException("not found project: <default>");
         }
 
         /// <exception cref="MSBuildParserProjectNotFoundException">if not found the specific project</exception>
-        protected Project getProject(string project)
+        protected virtual Project getProject(string project)
         {
             if(project == null) {
                 return getProjectDefault();
@@ -292,41 +324,25 @@ namespace net.r_eg.vsSBE
 
             IEnumerator<Project> eprojects = _loadedProjects();
             while(eprojects.MoveNext()) {
-                if(eprojects.Current.GetPropertyValue("ProjectName").Equals(project) && _isActiveConfiguration(eprojects.Current)) {
+                if(eprojects.Current.GetPropertyValue("ProjectName").Equals(project) && isActiveConfiguration(eprojects.Current)) {
                     return eprojects.Current;
                 }
             }
             throw new MSBuildParserProjectNotFoundException(String.Format("not found project: '{0}'", project));
         }
 
-        /// <remarks>deprecated, see _getRuntimeSettings()</remarks>
-        /// <exception cref="MSBuildParserProjectPropertyNotFoundException">problem with the CurrentSolutionConfigurationContents property</exception>
-        private TRuntimeSettings _getRuntimeSettingsCfg()
+        protected bool isActiveConfiguration(Project project)
         {
-            string xml = ProjectCollection.GlobalProjectCollection.GetGlobalProperty("CurrentSolutionConfigurationContents").EvaluatedValue;
+            string configuration    = project.GetPropertyValue("Configuration");
+            string platform         = project.GetPropertyValue("Platform");
 
-            // ProjectConfiguration
-            Match m = Regex.Match(xml, @"ProjectConfiguration[^>]*>(\S+?)\|(\S+?)<", RegexOptions.IgnoreCase);
-            if(!m.Success){
-                throw new MSBuildParserProjectPropertyNotFoundException("Runtime settings - 'ProjectConfiguration'");
-            }
-            return new TRuntimeSettings(m.Groups[1].Value, m.Groups[2].Value);
-        }
-
-        private TRuntimeSettings _getRuntimeSettings()
-        {
-            SolutionConfiguration2 cfg = (SolutionConfiguration2)dte2.Solution.SolutionBuild.ActiveConfiguration;
-            return new TRuntimeSettings(cfg.Name, cfg.PlatformName);
-        }
-
-        private bool _isActiveConfiguration(Project project)
-        {
-            TRuntimeSettings runtime    = _getRuntimeSettings();
-            string configuration        = project.GetPropertyValue("Configuration");
-            string platform             = project.GetPropertyValue("Platform");
-
-            if(configuration.Equals(runtime.configuration) && platform.Equals(runtime.platform)) {
-                return true;
+            foreach(EnvDTE.SolutionContext sln in SolutionActiveConfiguration.SolutionContexts) {
+                if(project.FullPath.EndsWith(sln.ProjectName)
+                    && sln.ConfigurationName.Equals(configuration) && sln.PlatformName.Equals(platform)) {
+                    return true;
+                }
+                Log.nlog.Trace(String.Format("_isActiveConfiguration skipped: {0} [{1} = {2} ; {3} - {4}]", 
+                                                sln.ProjectName, sln.ConfigurationName, configuration, sln.PlatformName, platform));
             }
             return false;
         }
@@ -337,18 +353,27 @@ namespace net.r_eg.vsSBE
         /// </summary>
         private void _reloadProjectCollection()
         {
-            TRuntimeSettings runtime            = _getRuntimeSettings();
-            Dictionary<string, string> prop     = new Dictionary<string, string>();
-
-            prop["Configuration"]   = runtime.configuration;
-            prop["Platform"]        = runtime.platform;
-            
-            foreach(EnvDTE.Project project in dte2.Solution.Projects)
-            {
-                if(project.FullName == null || project.FullName.Length < 1) {
+            Dictionary<string, string> paths = new Dictionary<string, string>();
+            foreach (EnvDTE.Project project in dte2.Solution.Projects) {
+                if(String.IsNullOrEmpty(project.FullName) || String.IsNullOrEmpty(project.UniqueName)) {
                     continue;
                 }
-                ProjectCollection.GlobalProjectCollection.LoadProject(project.FullName, prop, null);
+                paths[project.UniqueName] = project.FullName;
+            }
+
+            Log.nlog.Debug(string.Format("Solution.Projects = {0}", SolutionActiveConfiguration.SolutionContexts.Count));
+            foreach(EnvDTE.SolutionContext sln in SolutionActiveConfiguration.SolutionContexts)
+            {
+                if(!paths.ContainsKey(sln.ProjectName)) {
+                    Log.nlog.Warn(String.Format("can't reload project '{0}' in GlobalProjectCollection", sln.ProjectName));
+                }
+
+                Dictionary<string, string> prop = new Dictionary<string, string>();
+                prop["Configuration"]   = sln.ConfigurationName;
+                prop["Platform"]        = sln.PlatformName;
+
+                Log.nlog.Debug(string.Format("ActiveConfiguration :: {0}, {1}", sln.ConfigurationName, sln.PlatformName));
+                ProjectCollection.GlobalProjectCollection.LoadProject(paths[sln.ProjectName], prop, null);
             }
         }
 
@@ -356,13 +381,17 @@ namespace net.r_eg.vsSBE
         private IEnumerator<Project> _loadedProjects()
         {
             if(_flagBugLoadProject) {
+                Log.nlog.Debug("call UnloadAllProjects()");
                 ProjectCollection.GlobalProjectCollection.UnloadAllProjects();
             }
 
             ICollection<Project> prgs = ProjectCollection.GlobalProjectCollection.LoadedProjects;
-            if(prgs == null || prgs.Count < 1) { // https://bitbucket.org/3F/vssolutionbuildevent/issue/3/
+            if(prgs == null || prgs.Count < 1) // https://bitbucket.org/3F/vssolutionbuildevent/issue/3/
+            {
                 _flagBugLoadProject = true; // on some VS versions
-                _reloadProjectCollection();                
+
+                Log.nlog.Debug("call _reloadProjectCollection()");
+                _reloadProjectCollection();
             }
 
             prgs = ProjectCollection.GlobalProjectCollection.LoadedProjects;
@@ -405,18 +434,6 @@ namespace net.r_eg.vsSBE
                 return false;
             }
             return true;
-        }
-
-        private struct TRuntimeSettings
-        {
-            public string configuration;
-            public string platform;
-
-            public TRuntimeSettings(string configuration, string platform)
-            {
-                this.configuration  = configuration;
-                this.platform       = platform;
-            }
         }
     }
 
