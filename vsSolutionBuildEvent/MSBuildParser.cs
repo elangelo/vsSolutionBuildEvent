@@ -51,7 +51,12 @@ namespace net.r_eg.vsSBE
         /// </summary>
         protected string StartupProjectString
         {
-            get { return dte2.Solution.SolutionBuild.StartupProjects.ToString();  }
+            get {
+                foreach(string project in (Array)dte2.Solution.SolutionBuild.StartupProjects) {
+                    return project;
+                }
+                return null;
+            }
         }
 
         protected SolutionConfiguration2 SolutionActiveConfiguration
@@ -100,27 +105,40 @@ namespace net.r_eg.vsSBE
 
         public List<MSBuildPropertyItem> listProperties(string projectName = null)
         {
+            Log.nlog.Debug("listProperties start => ");
+
             List<MSBuildPropertyItem> properties = new List<MSBuildPropertyItem>();
 
             Project project = getProject(projectName);
+            Log.nlog.Debug(String.Format("listProperties from '{0}'", project.FullPath));
+            Log.nlog.Debug(String.Format("project.Properties = {0}", project.Properties.Count));
+
             foreach(ProjectProperty property in project.Properties) {
                 properties.Add(new MSBuildPropertyItem(property.Name, property.EvaluatedValue));
             }
+            Log.nlog.Debug(String.Format("properties = {0}", properties.Count));
             return properties;
         }
 
         public List<string> listProjects()
         {
+            Log.nlog.Debug("listProjects start =>");
+
             List<string> projects           = new List<string>();
             IEnumerator<Project> eprojects  = _loadedProjects();
 
             while(eprojects.MoveNext()) {
-                string projectName = eprojects.Current.GetPropertyValue("ProjectName");
+                string projectName      = eprojects.Current.GetPropertyValue("ProjectName");
+                string projectPlaform   = eprojects.Current.GetPropertyValue("Platform");
+                string projectCfg       = eprojects.Current.GetPropertyValue("Configuration");
+                Log.nlog.Trace(String.Format("listProjects for '{0}' [{1} ; {2}]", projectName, projectCfg, projectPlaform));
 
-                if(projectName != null && isActiveConfiguration(eprojects.Current)) {
+                if(!String.IsNullOrEmpty(projectName) && isActiveConfiguration(eprojects.Current)) {
+                    Log.nlog.Trace(String.Format("project added into list '{0}'", projectName));
                     projects.Add(projectName);
                 }
             }
+            Log.nlog.Debug(String.Format("listProjects.Count = {0}", projects.Count));
             return projects;
         }
 
@@ -287,18 +305,26 @@ namespace net.r_eg.vsSBE
         /// <returns>Microsoft.Build.Evaluation.Project</returns>
         protected virtual Project getProjectDefault()
         {
+            Log.nlog.Debug("getProjectDefault start =>");
+
             Project ret                     = null;
             IEnumerator<Project> eprojects  = _loadedProjects();
 
             while(eprojects.MoveNext())
             {
                 bool isActive = isActiveConfiguration(eprojects.Current);
-                if(isActive && eprojects.Current.FullPath.EndsWith(StartupProjectString)) {
+
+                Log.nlog.Trace(String.Format("getProjectDefault: '{0}' isActive = {1} [Sturtup: {2}]", eprojects.Current.FullPath, isActive, StartupProjectString));
+
+                if(!String.IsNullOrEmpty(StartupProjectString) && isActive && eprojects.Current.FullPath.EndsWith(StartupProjectString)) {
+                    Log.nlog.Debug("ret selected");
                     ret = eprojects.Current;
                     break;
                 }
+                Log.nlog.Trace("getProjectDefault: ignored");
 
                 if(ret == null && isActive) {
+                    Log.nlog.Debug("getProjectDefault: set the first by default");
                     ret = eprojects.Current; // by default if there are problems with the StartupProjectString
                 }
             }
@@ -318,15 +344,24 @@ namespace net.r_eg.vsSBE
         /// <exception cref="MSBuildParserProjectNotFoundException">if not found the specific project</exception>
         protected virtual Project getProject(string project)
         {
+            Log.nlog.Debug("getProject start =>");
+
             if(project == null) {
                 return getProjectDefault();
             }
 
             IEnumerator<Project> eprojects = _loadedProjects();
             while(eprojects.MoveNext()) {
-                if(eprojects.Current.GetPropertyValue("ProjectName").Equals(project) && isActiveConfiguration(eprojects.Current)) {
+
+                string name = eprojects.Current.GetPropertyValue("ProjectName");
+
+                Log.nlog.Trace(String.Format("getProject cmp: '{0}' == '{1}'", name, project));
+
+                if(name.Equals(project) && isActiveConfiguration(eprojects.Current)) {
+                    Log.nlog.Trace("getProject: isActive true & matched");
                     return eprojects.Current;
                 }
+                Log.nlog.Trace("getProject: ignored");
             }
             throw new MSBuildParserProjectNotFoundException(String.Format("not found project: '{0}'", project));
         }
@@ -336,13 +371,17 @@ namespace net.r_eg.vsSBE
             string configuration    = project.GetPropertyValue("Configuration");
             string platform         = project.GetPropertyValue("Platform");
 
-            foreach(EnvDTE.SolutionContext sln in SolutionActiveConfiguration.SolutionContexts) {
+            foreach(EnvDTE.SolutionContext sln in SolutionActiveConfiguration.SolutionContexts)
+            {
+                Log.nlog.Trace(String.Format("isActiveConfiguration for '{5}' : '{0}' [{1} = {2} ; {3} - {4}]",
+                                                                sln.ProjectName, sln.ConfigurationName, configuration, sln.PlatformName, platform, project.FullPath));
                 if(project.FullPath.EndsWith(sln.ProjectName)
-                    && sln.ConfigurationName.Equals(configuration) && sln.PlatformName.Equals(platform)) {
+                    && sln.ConfigurationName.Equals(configuration) && sln.PlatformName.Equals(platform))
+                {
+                    Log.nlog.Trace("isActiveConfiguration: matched");
                     return true;
                 }
-                Log.nlog.Trace(String.Format("_isActiveConfiguration skipped: {0} [{1} = {2} ; {3} - {4}]", 
-                                                sln.ProjectName, sln.ConfigurationName, configuration, sln.PlatformName, platform));
+                Log.nlog.Trace("isActiveConfiguration: ignored");
             }
             return false;
         }
@@ -353,6 +392,8 @@ namespace net.r_eg.vsSBE
         /// </summary>
         private void _reloadProjectCollection()
         {
+            Log.nlog.Debug("_reloadProjectCollection start =>");
+
             Dictionary<string, string> paths = new Dictionary<string, string>();
             foreach (EnvDTE.Project project in dte2.Solution.Projects) {
                 if(String.IsNullOrEmpty(project.FullName) || String.IsNullOrEmpty(project.UniqueName)) {
@@ -372,7 +413,7 @@ namespace net.r_eg.vsSBE
                 prop["Configuration"]   = sln.ConfigurationName;
                 prop["Platform"]        = sln.PlatformName;
 
-                Log.nlog.Debug(string.Format("ActiveConfiguration :: {0}, {1}", sln.ConfigurationName, sln.PlatformName));
+                Log.nlog.Trace(string.Format("reload->ActiveConfiguration :: {0}, {1}", sln.ConfigurationName, sln.PlatformName));
                 ProjectCollection.GlobalProjectCollection.LoadProject(paths[sln.ProjectName], prop, null);
             }
         }
