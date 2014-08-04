@@ -68,7 +68,7 @@ namespace net.r_eg.vsSBE
         /// Flag of optimisation reload projects.
         /// See _reloadProjectCollection() for detail
         /// </summary>
-        private static bool _flagBugLoadProject = false;
+        private static bool _flagBugLoadProject = true; //TODO
 
         /// <summary>
         /// object synch.
@@ -316,7 +316,7 @@ namespace net.r_eg.vsSBE
 
                 Log.nlog.Trace(String.Format("getProjectDefault: '{0}' isActive = {1} [Sturtup: {2}]", eprojects.Current.FullPath, isActive, StartupProjectString));
 
-                if(!String.IsNullOrEmpty(StartupProjectString) && isActive && eprojects.Current.FullPath.EndsWith(StartupProjectString)) {
+                if(!String.IsNullOrEmpty(StartupProjectString) && isActive && _cmpPathBEProjectWithString(eprojects.Current, StartupProjectString)) {
                     Log.nlog.Debug("ret selected");
                     ret = eprojects.Current;
                     break;
@@ -375,7 +375,7 @@ namespace net.r_eg.vsSBE
             {
                 Log.nlog.Trace(String.Format("isActiveConfiguration for '{5}' : '{0}' [{1} = {2} ; {3} - {4}]",
                                                                 sln.ProjectName, sln.ConfigurationName, configuration, sln.PlatformName, platform, project.FullPath));
-                if(project.FullPath.EndsWith(sln.ProjectName)
+                if(_cmpPathBEProjectWithString(project, sln.ProjectName)
                     && sln.ConfigurationName.Equals(configuration) && sln.PlatformName.Equals(platform))
                 {
                     Log.nlog.Trace("isActiveConfiguration: matched");
@@ -394,27 +394,17 @@ namespace net.r_eg.vsSBE
         {
             Log.nlog.Debug("_reloadProjectCollection start =>");
 
-            Dictionary<string, string> paths = new Dictionary<string, string>();
-            foreach (EnvDTE.Project project in dte2.Solution.Projects) {
-                if(String.IsNullOrEmpty(project.FullName) || String.IsNullOrEmpty(project.UniqueName)) {
-                    continue;
-                }
-                paths[project.UniqueName] = project.FullName;
-            }
-
             Log.nlog.Debug(string.Format("Solution.Projects = {0}", SolutionActiveConfiguration.SolutionContexts.Count));
             foreach(EnvDTE.SolutionContext sln in SolutionActiveConfiguration.SolutionContexts)
             {
-                if(!paths.ContainsKey(sln.ProjectName)) {
-                    Log.nlog.Warn(String.Format("can't reload project '{0}' in GlobalProjectCollection", sln.ProjectName));
-                }
+                string pFile = System.IO.Path.Combine(Config.WorkPath, sln.ProjectName);
 
                 Dictionary<string, string> prop = new Dictionary<string, string>();
                 prop["Configuration"]   = sln.ConfigurationName;
                 prop["Platform"]        = sln.PlatformName;
 
-                Log.nlog.Trace(string.Format("reload->ActiveConfiguration :: {0}, {1}", sln.ConfigurationName, sln.PlatformName));
-                ProjectCollection.GlobalProjectCollection.LoadProject(paths[sln.ProjectName], prop, null);
+                Log.nlog.Trace(string.Format("reload->ActiveConfiguration :: '{0}' [{1} ; {2}]", pFile, sln.ConfigurationName, sln.PlatformName));
+                ProjectCollection.GlobalProjectCollection.LoadProject(pFile, prop, null);
             }
         }
 
@@ -475,6 +465,30 @@ namespace net.r_eg.vsSBE
                 return false;
             }
             return true;
+        }
+
+
+        /// <summary>
+        /// Compares paths of projects
+        /// </summary>
+        /// <param name="eProject">Microsoft.Build.Evaluation.Project provides absolute path with the FullPath property</param>
+        /// <param name="project">
+        /// project name with any path, e.g.: 
+        ///   * 'C:\Projects\Foo\Foo.csproj' == '..\..\Foo\Foo.csproj'
+        ///   * 'C:\Projects\Foo\Foo.csproj' == 'Foo.csproj'
+        ///   * 'C:\Projects\Foo\Foo.csproj' == 'C:\Projects\Foo\Foo.csproj'
+        ///   
+        /// Because the properties below can provide the relative path:
+        ///   * EnvDTE.Project.UniqueName
+        ///   * EnvDTE.SolutionBuild.StartupProjects
+        ///   * EnvDTE.SolutionContext.ProjectName
+        /// </param>
+        /// <returns>true if equal</returns>
+        private bool _cmpPathBEProjectWithString(Project eProject, string project)
+        {
+            string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Config.WorkPath, project));
+            Log.nlog.Trace(String.Format("_cmpPathBEProjectWithString: '{0}' :: '{1}' :: '{2}' = {3}", Config.WorkPath, project, path, eProject.FullPath));
+            return path.Equals(eProject.FullPath);
         }
     }
 
