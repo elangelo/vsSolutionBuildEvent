@@ -188,7 +188,7 @@
       "Mode": {
         "$type": "net.r_eg.vsSBE.Events.ModeScript, vsSolutionBuildEvent",
         "Type": "Script",
-        "Command": "#[( #[File exists.directory(\".git\")] && #[File exists.file(\"git.exe\", true)] )\n{\n    #[var branchSha1        = #[File sout(\"git\", \"rev-parse --short HEAD\")]]\n    #[var branchName        = #[File sout(\"git\", \"rev-parse --abbrev-ref HEAD\")]]\n    #[var branchRevCount    = #[File sout(\"git\", \"rev-list HEAD --count\")]]\n    \n    #[var csVersion = $(tplVersion.Replace(%branchName%, \"$(branchName)\").Replace(%branchSha1%, \"$(branchSha1)\").Replace(%branchRevCount%, \"$(branchRevCount)\"))]\n    \n    #[($(branchName) == \"HEAD\") {\n        #[var branchName = $(APPVEYOR_REPO_BRANCH)]\n    }]\n}\nelse {\n    #[var branchSha1 =-] #[var branchName =-] #[var branchRevCount =-]\n    #[var csVersion = $(tplVersion.Replace(%branchName%, \"-\").Replace(%branchSha1%, \"-\").Replace(%branchRevCount%, \"-\"))]\n}]\n\n\n#[\"\n    'vsSolutionBuildEvent' project\n\"]\n\n#[var cs = $(csVersion.Replace(\"%Version%\", \"$(numSBE.Replace('.', ', ')), $(revBuild)\").Replace(\"%namespace%\", \"\"))]\n#[var cs = $(cs.Replace(\"%VersionRevString%\", \"$(numSBE).$(revBuild)\").Replace(\"%VersionString%\", \"$(numSBE)\"))]\n#[File write(\"#[var pDir]Version.cs\"):#[var cs]]\n\n\n#[\"\n    .vsixmanifest\n\"]\n\n#[( $(Configuration) ^= \"CI_\" || $(Configuration) ~= \"_with_revision\" ) {\n    #[var numSBE = #[var numSBE].#[var revBuild]]\n}]\n#[File replace.Regexp(\"#[var pDir]/source.extension.vsixmanifest\", \"<Version>[0-9.]+</Version>\", \"<Version>#[var numSBE]</Version>\")]",
+        "Command": "#[( #[File exists.directory(\".git\")] && #[File exists.file(\"git.exe\", true)] )\n{\n    #[var branchSha1        = #[File sout(\"git\", \"rev-parse --short HEAD\")]]\n    #[var branchName        = #[File sout(\"git\", \"rev-parse --abbrev-ref HEAD\")]]\n    #[var branchRevCount    = #[File sout(\"git\", \"rev-list HEAD --count\")]]\n    \n    #[var csVersion = $(tplVersion.Replace(%branchName%, \"$(branchName)\").Replace(%branchSha1%, \"$(branchSha1)\").Replace(%branchRevCount%, \"$(branchRevCount)\"))]\n    \n    #[($(branchName) == \"HEAD\") {\n        #[var branchName = $(APPVEYOR_REPO_BRANCH)]\n    }]\n}\nelse {\n    #[var branchSha1 =-] #[var branchName =-] #[var branchRevCount =-]\n    #[var csVersion = $(tplVersion.Replace(%branchName%, \"-\").Replace(%branchSha1%, \"-\").Replace(%branchRevCount%, \"-\"))]\n}]\n\n\n#[\"\n    'vsSolutionBuildEvent' project\n\"]\n\n#[var cs = $(csVersion.Replace(\"%Version%\", \"$(numSBE.Replace('.', ', ')), $(revBuild)\").Replace(\"%namespace%\", \"\"))]\n#[var cs = $(cs.Replace(\"%VersionRevString%\", \"$(numSBE).$(revBuild)\").Replace(\"%VersionString%\", \"$(numSBE)\"))]\n#[File write(\"#[var pDir]Version.cs\"):#[var cs]]\n",
         "Command__": [
           "#[( #[File exists.directory(\".git\")] && #[File exists.file(\"git.exe\", true)] )",
           "{",
@@ -215,16 +215,7 @@
           "#[var cs = $(csVersion.Replace(\"%Version%\", \"$(numSBE.Replace('.', ', ')), $(revBuild)\").Replace(\"%namespace%\", \"\"))]",
           "#[var cs = $(cs.Replace(\"%VersionRevString%\", \"$(numSBE).$(revBuild)\").Replace(\"%VersionString%\", \"$(numSBE)\"))]",
           "#[File write(\"#[var pDir]Version.cs\"):#[var cs]]",
-          "",
-          "",
-          "#[\"",
-          "    .vsixmanifest",
-          "\"]",
-          "",
-          "#[( $(Configuration) ^= \"CI_\" || $(Configuration) ~= \"_with_revision\" ) {",
-          "    #[var numSBE = #[var numSBE].#[var revBuild]]",
-          "}]",
-          "#[File replace.Regexp(\"#[var pDir]/source.extension.vsixmanifest\", \"<Version>[0-9.]+</Version>\", \"<Version>#[var numSBE]</Version>\")]"
+          ""
         ]
       }
     },
